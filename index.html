@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <title>POS ร้านเจ้พิน</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/rangePlugin.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="script.js"></script>
+</head>
+
+<body>
+  <div class="left-pane">
+    <div id="datetime">
+      <div class="date"></div>
+      <div class="time"></div>
+    </div>
+
+   
+    <div id="controls">
+      <input type="number" id="productCode" placeholder="🔍สินค้า">
+      <input type="number" id="received" placeholder="💰รับเงิน" oninput="calculateChange()">
+      <button id="clearAll" onclick="clearAll()">🗑️ลบ</button>
+	  <button id="receiptBtn" onclick="showReceiptHistory()">🧾 ใบเสร็จ</button>
+      </div>
+	  <button id="addProductBtn" style="font-size: 10px; padding: 3px 8px; background-color: #e67e22; color: white; border: none; border-radius: 5px;">➕</button>
+	 
+	<!-- Popup สำหรับเพิ่มสินค้า -->
+	<div id="productPopup" class="popup" style="display: none;">
+	  <div class="popup-content">
+		<label>รหัสสินค้า</label>
+		<input type="text" id="newCode"><br>
+		<label>ชื่อสินค้า</label>
+		<input type="text" id="newName"><br>
+		<label>ราคา<span style="color:red">*</span></label>
+		<input type="text" id="newPrice"><br>
+		<button id="saveProductBtn">💾</button>
+		<button onclick="closePopup()">❌</button>
+	  </div>
+	</div>
+		
+    <table id="productTable">
+      <thead>
+        <tr>
+          <th>รหัสสินค้า</th>
+          <th>ชื่อสินค้า</th>
+          <th>จำนวน</th>
+          <th>ราคา</th>
+          <th>ลบ</th>
+		  <th>แกไข</th>
+        </tr>
+      </thead>
+      <tbody id="productBody" class="striped"></tbody>
+    </table>
+	<button id="showTodayBtn" style="position: relative; bottom: 0px; left: 0px; z-index: 800;">ยอดวันนี้</button>
+	<div class="today-summary-box" id="todaySummaryBox">
+      <strong>รวมยอด:</strong>
+      <div id="todayTotal"></div>
+    </div>
+  </div>
+
+  <div class="right-pane">
+    <div class="summary-box" style="background-color: #27ae60; color: white;">
+      <div class="small-top" id="totalQty"></div>
+      <div class="big-center" id="totalPrice">ราคารวม</div>
+    </div>
+
+    <div id="changeBox" style="background-color: #3498db; color: white;">
+      <div class="small-top">เงินทอน</div>
+      <div class="big-center" id="changeAmount">เงินทอน</div>
+    </div>
+
+    <div class="calendar-summary-box" id="rangeSummaryBox">
+     <strong style="font-size: 12px;">ดูย้อนหลัง</strong><br>
+     <button class="range-btn" onclick="showLastDays(7)">7 วัน</button>
+     <button class="range-btn" onclick="showLastDays(30)">30 วัน</button>
+	 <button class="range-btn" onclick="showYesterday()">เมื่อวาน</button><br>
+     <input type="text" id="customRange" placeholder="เลือกช่วง" class="range-input">
+     <div id="rangeTotal" class="hidden"></div>
+    </div>
+
+
+   
+  <div id="editPopup" class="popup" style="display:none;">
+  <div class="popup-content">
+    <label>ชื่อสินค้า:</label>
+    <input type="text" id="editName"><br>
+    <label>ราคาขาย:</label>
+    <input type="number" id="editPrice"><br>
+    <button id="saveEditBtn">💾</button>
+    <button onclick="closeEditPopup()">❌</button>
+  </div>
+</div>
+
+</body>
+
+
+</html>
