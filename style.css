@@ -36,10 +36,10 @@ body {
 #datetime .time {
   font-size: 40px;
   font-weight: 700;
-  background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: rainbow-move 5s linear infinite;
+  //background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
+  //-webkit-background-clip: text;
+  //-webkit-text-fill-color: transparent;
+  //animation: rainbow-move 5s linear infinite;
 }
 @keyframes rainbow-move {
   0% { background-position: 0% }
