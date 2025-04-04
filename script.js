@@ -201,10 +201,7 @@ function findProduct() {
         updateTotals();
         updateRowColors();
       });
-	  row.querySelector(".edit-btn").addEventListener("click", function () {
-	  openEditPopup(productList[i], row);
-	});
-
+	 
 		row.classList.add("row-animate"); // 👈 เพิ่มตรงนี้ก่อน insert
 	   const tbody = document.getElementById("productBody");
 	   tbody.insertBefore(row, tbody.firstChild);
