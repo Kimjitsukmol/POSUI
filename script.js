@@ -190,7 +190,6 @@ function findProduct() {
         <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
         <td class='item-row-price'>${productList[i]["ราคาขาย"]}</td>
         <td><button class='delete-btn'>❌</button></td>
-      `;
       row.querySelector(".delete-btn").addEventListener("click", function () {
         row.remove();
         updateTotals();
