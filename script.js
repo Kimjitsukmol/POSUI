@@ -136,9 +136,6 @@ document.getElementById("productCode").addEventListener("keyup", function (e) {
   if (e.key === "Backspace") isBackspacePressed = false;
 });
 
-
-
-
 document.getElementById("received").addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !e.repeat) {
     const rows = document.querySelectorAll("#productBody tr");
@@ -163,8 +160,6 @@ document.getElementById("received").addEventListener("keydown", function (e) {
   }
 });
 
-
-
 document.getElementById("showTodayBtn").addEventListener("click", () => {
   const box = document.getElementById("todaySummaryBox");
   box.style.display = "block";
@@ -181,18 +176,6 @@ window.addEventListener("keydown", function (e) {
   }
 });
 
-//flatpickr("#calendar", {
-  //dateFormat: "dd/MM/yyyy",
-  //locale: "th",
-  //onChange: function (selectedDates) {
-    //const summary = JSON.parse(localStorage.getItem("posSummary")) || {};
-    //const selected = new Date(selectedDates[0]);
-    //const key = selected.toLocaleDateString("th-TH");
-    //const value = summary[key] || 0;
-    //document.getElementById("selectedTotal").textContent = `ยอดรวม: ฿${value.price.toFixed(2)} (${value.qty} ชิ้น)`;
-  //}
-//});
-
 function findProduct() {
   const code = document.getElementById("productCode").value.trim();
   document.getElementById("productCode").value = "";
@@ -207,7 +190,6 @@ function findProduct() {
         <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
         <td class='item-row-price'>${productList[i]["ราคาขาย"]}</td>
         <td><button class='delete-btn'>❌</button></td>
-		<td><button class='edit-btn' style="font-size: 15px; padding: 2px 6px;">✏️</button></td>
       `;
       row.querySelector(".delete-btn").addEventListener("click", function () {
         row.remove();
