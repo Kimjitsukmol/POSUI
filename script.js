@@ -136,6 +136,9 @@ document.getElementById("productCode").addEventListener("keyup", function (e) {
   if (e.key === "Backspace") isBackspacePressed = false;
 });
 
+
+
+
 document.getElementById("received").addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !e.repeat) {
     const rows = document.querySelectorAll("#productBody tr");
@@ -160,6 +163,8 @@ document.getElementById("received").addEventListener("keydown", function (e) {
   }
 });
 
+
+
 document.getElementById("showTodayBtn").addEventListener("click", () => {
   const box = document.getElementById("todaySummaryBox");
   box.style.display = "block";
@@ -180,7 +185,6 @@ function findProduct() {
   const code = document.getElementById("productCode").value.trim();
   document.getElementById("productCode").value = "";
   let found = false;
-
   for (let i = 0; i < productList.length; i++) {
     if (String(productList[i]["รหัสสินค้า"]) === code) {
       const row = document.createElement("tr");
@@ -188,39 +192,35 @@ function findProduct() {
       row.innerHTML = `
         <td>${productList[i]["รหัสสินค้า"]}</td>
         <td>${productList[i]["ชื่อสินค้า"]}</td>
-        <td><input type="number" value="1" min="1" oninput="updateTotals()" style="width: 50px;"></td>
-        <td class="item-row-price">${productList[i]["ราคาขาย"]}</td>
-        <td><button class="delete-btn">❌</button></td>
+        <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
+        <td class='item-row-price'>${productList[i]["ราคาขาย"]}</td>
+        <td><button class='delete-btn'>❌</button></td>
+		<td><button class='edit-btn' style="font-size: 15px; padding: 2px 6px;">✏️</button></td>
       `;
-
-      // ผูกปุ่มลบหลังจากเพิ่ม HTML แล้ว
-      const deleteBtn = row.querySelector(".delete-btn");
-      deleteBtn.addEventListener("click", function () {
+      row.querySelector(".delete-btn").addEventListener("click", function () {
         row.remove();
         updateTotals();
         updateRowColors();
       });
+	  row.querySelector(".edit-btn").addEventListener("click", function () {
+	  openEditPopup(productList[i], row);
+	});
 
-      row.classList.add("row-animate");
-
-      const tbody = document.getElementById("productBody");
-      tbody.insertBefore(row, tbody.firstChild);
-
-      updateTotals();
-      updateRowColors();
-
-      const unitPrice = productList[i]["ราคาขาย"];
-      speak(`${unitPrice} บาท`);
-
-      found = true;
+		row.classList.add("row-animate"); // 👈 เพิ่มตรงนี้ก่อน insert
+	   const tbody = document.getElementById("productBody");
+	   tbody.insertBefore(row, tbody.firstChild);
+       updateTotals();
+       updateRowColors();
+       const unitPrice = productList[i]["ราคาขาย"];
+       speak(`${unitPrice} บาท`);
+       //ชิ้นที่ ${totalQty}
+       found = true;
       break;
     }
   }
-
   if (!found) {
-    speak("ไม่มี");
+    speak("ไม่มี"); // ✅ กรณีไม่พบ
   }
-}
 }
 
 function updateRowColors_DEPRECATED() {
@@ -286,7 +286,7 @@ function calculateChange() {
     } else {
       speak(`รับเงินไม่พอ`);
     }
-  }, 700);
+  }, 600);
 }
 
 function clearAll() {
