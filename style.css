@@ -292,12 +292,6 @@ input#received:focus {
   margin-bottom: 10px;
 }
 
-#addProductBtn {
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 5px;
-}
-
 @keyframes row-grow {
   0% {
     transform: scaleY(0);

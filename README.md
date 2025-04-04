@@ -1,2 +1,2 @@
-# POSUI
-POS UI ver.1.0
+# POSBeta
+POS Beta ver1.0
