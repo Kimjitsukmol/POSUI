@@ -182,34 +182,35 @@ function findProduct() {
   let found = false;
   for (let i = 0; i < productList.length; i++) {
     if (String(productList[i]["รหัสสินค้า"]) === code) {
-      const row = document.createElement("tr");
+  const row = document.createElement("tr");
 
-      row.innerHTML = `
-        <td>${productList[i]["รหัสสินค้า"]}</td>
-        <td>${productList[i]["ชื่อสินค้า"]}</td>
-        <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-        <td class='item-row-price'>${productList[i]["ราคาขาย"]}</td>
-        <td><button class='delete-btn'>❌</button></td>
-      row.querySelector(".delete-btn").addEventListener("click", function () {
-        row.remove();
-        updateTotals();
-        updateRowColors();
-      });
-	  row.querySelector(".edit-btn").addEventListener("click", function () {
-	  openEditPopup(productList[i], row);
-	});
+  row.innerHTML = `
+    <td>${productList[i]["รหัสสินค้า"]}</td>
+    <td>${productList[i]["ชื่อสินค้า"]}</td>
+    <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
+    <td class='item-row-price'>${productList[i]["ราคาขาย"]}</td>
+    <td><button class='delete-btn'>❌</button></td>
+  `;
 
-		row.classList.add("row-animate"); // 👈 เพิ่มตรงนี้ก่อน insert
-	   const tbody = document.getElementById("productBody");
-	   tbody.insertBefore(row, tbody.firstChild);
-       updateTotals();
-       updateRowColors();
-       const unitPrice = productList[i]["ราคาขาย"];
-       speak(`${unitPrice} บาท`);
-       //ชิ้นที่ ${totalQty}
-       found = true;
-      break;
-    }
+  row.querySelector(".delete-btn").addEventListener("click", function () {
+    row.remove();
+    updateTotals();
+    updateRowColors();
+  });
+
+  row.classList.add("row-animate");
+  const tbody = document.getElementById("productBody");
+  tbody.insertBefore(row, tbody.firstChild);
+
+  updateTotals();
+  updateRowColors();
+
+  const unitPrice = productList[i]["ราคาขาย"];
+  speak(`${unitPrice} บาท`);
+  found = true;
+  break;
+}
+
   }
   if (!found) {
     speak("ไม่มี"); // ✅ กรณีไม่พบ
