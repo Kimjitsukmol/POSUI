@@ -253,6 +253,8 @@ function updateTotals() {
   calculateChange();
 }
 
+let calculateSpeakTimer = null;
+
 function calculateChange() {
   const receivedInput = document.getElementById("received");
   const changeBox = document.getElementById("changeAmount");
@@ -262,28 +264,31 @@ function calculateChange() {
   if (!receivedInput.value || isNaN(received)) {
     changeBox.textContent = "";
     summaryBox.classList.remove("animate-shrink");
+    clearTimeout(calculateSpeakTimer); // ป้องกันเสียงค้าง
     return;
   }
-	
+
   const change = received - totalPrice;
   changeBox.textContent = `${change.toFixed(0)}`;
   summaryBox.classList.add("animate-shrink");
 
-	changeBox.classList.remove("animate-grow"); // reset ก่อน
-	void changeBox.offsetWidth; // รีเฟรช DOM เพื่อให้ animation เล่นได้ทุกครั้ง
-	changeBox.classList.add("animate-grow");
+  changeBox.classList.remove("animate-grow");
+  void changeBox.offsetWidth;
+  changeBox.classList.add("animate-grow");
 
-
-  // ✅ พูดหลังจากผ่านไป 3 วินาที
-  clearTimeout(window.changeSpeakTimer); // ยกเลิกการพูดครั้งก่อนถ้ามี
-  window.changeSpeakTimer = setTimeout(() => {
+  // ✅ ✅ ✅ เพิ่มดีเลย์การพูดเมื่อหยุดพิมพ์แล้ว 1 วินาที
+  clearTimeout(calculateSpeakTimer);
+  calculateSpeakTimer = setTimeout(() => {
     if (change >= 0) {
-      speak(`เงินทอน ${change.toFixed(0)} บาท`);
+      speak(`รับเงิน ${received.toFixed(0)} บาท`);
+      setTimeout(() => speak(`เงินทอน ${change.toFixed(0)} บาท`), 800);
     } else {
       speak(`รับเงินไม่พอ`);
     }
-  }, 600);
+  }, 1000); // ← รอ 1 วิ หลังหยุดพิมพ์
 }
+
+
 
 function clearAll() {
   document.getElementById("productBody").innerHTML = "";
