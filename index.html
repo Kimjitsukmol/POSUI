@@ -19,8 +19,8 @@
       <div class="time"></div>
     </div>
     <div id="controls">
-      <input type="number" id="productCode" placeholder="🔍สินค้า">
-      <input type="number" id="received" placeholder="💰รับเงิน" oninput="calculateChange()">
+      <input type="numeric" pattern="[0-9]*" id="productCode" placeholder="🔍สินค้า">
+      <input type="numeric" pattern="[0-9]*" id="received" placeholder="💰รับเงิน" oninput="calculateChange()">
       <button id="clearAll" onclick="clearAll()">🗑️ลบ</button>
 	  <button id="receiptBtn" onclick="showReceiptHistory()">🧾พิมพ์</button>
       </div>
