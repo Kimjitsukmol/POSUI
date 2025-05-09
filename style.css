@@ -429,3 +429,8 @@ input#received:focus {
   transform: scale(2);
   box-shadow: 0 0 8px rgba(230, 126, 34, 0.5); /* เงาส้ม */
 }
+a {
+  text-decoration: none;
+}
+
+
