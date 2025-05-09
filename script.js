@@ -189,13 +189,15 @@ function findProduct() {
 
   for (let i = 0; i < productList.length; i++) {
     if (String(productList[i]["รหัสสินค้า"]) === code) {
+      const unitPrice = parseFloat(productList[i]["ราคาขาย"]);
       const row = document.createElement("tr");
 
       row.innerHTML = `
         <td>${productList[i]["รหัสสินค้า"]}</td>
-        <td>${productList[i]["ชื่อสินค้า"]}</td>
+        <td class="name-cell">${productList[i]["ชื่อสินค้า"]}</td>
         <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-        <td class='item-row-price'>${productList[i]["ราคาขาย"]}</td>
+        <td class='unit-price'>${unitPrice.toFixed(0)}</td>
+        <td class='item-row-price' data-unit-price='${unitPrice}'>${unitPrice.toFixed(0)}</td>
         <td><button class='delete-btn'>❌</button></td>
       `;
       row.querySelector(".delete-btn").addEventListener("click", function () {
@@ -209,7 +211,6 @@ function findProduct() {
       tbody.insertBefore(row, tbody.firstChild);
       updateTotals();
       updateRowColors();
-      const unitPrice = productList[i]["ราคาขาย"];
       speak(`${unitPrice} บาท`);
       found = true;
       break;
@@ -217,17 +218,16 @@ function findProduct() {
   }
 
   if (!found) {
-    // ✅ ถ้า code เป็นตัวเลข 1-10000 ให้สร้างสินค้าอัตโนมัติ
     const num = parseInt(code);
     if (!isNaN(num) && num >= 1 && num <= 10000) {
       const row = document.createElement("tr");
-
       row.innerHTML = `
         <td>${num}</td>
         <td>รายการสินค้า</td>
         <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-        <td class='item-row-price'>${num}</td>
-        <td><button class='delete-btn'>❌</button></td>
+        <td class='unit-price'>${num}</td>
+        <td class='item-row-price' data-unit-price='${num}'>${num}</td>
+        <td><button class='delete-btn'>x</button></td>
       `;
       row.querySelector(".delete-btn").addEventListener("click", function () {
         row.remove();
@@ -246,6 +246,7 @@ function findProduct() {
     }
   }
 }
+
 
 
 function updateRowColors_DEPRECATED() {
