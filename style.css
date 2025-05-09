@@ -462,8 +462,12 @@ td:nth-child(5)  /* รวม */
   width: 80px;
 }
 
-th.price-header,
-th.total-header {
+th.price-header {
   font-size: 13px;
   font-weight: normal; /* หรือลดเป็นเบาๆ */
+}
+
+th.total-header {
+  font-size: 14px;
+  font-weight: bold; /* หรือลดเป็นเบาๆ */
 }
