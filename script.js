@@ -1,762 +1,614 @@
-// ไฟล์ script.js
+// Updated script.js with editable summary discount percentage
+let rowCount = 0;
 
-let productList = [];
-let totalPrice = 0;
-let totalQty = 0;
-let rangeTimer = null;
+let percentBelow5000 = 15;
+let percentAbove5000 = 20;
+let percentRun = 95;
+let customPercentages = {}; // กำหนดเปอร์เซ็นต์รายบุคคล
+let summaryDiscountPercent = 30; // ค่า default สำหรับการสรุปยอดรวม
 
-let isEnterPressed = false;
-let isBackspacePressed = false;
+let lastPlaceholderRow = null;
+let lastPlaceholderTimeout = null;
 
-fetch("https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec")
-  .then(response => response.json())
-  .then(data => {
-    productList = data;
-    console.log("✅ โหลดสินค้าจาก Google Sheets สำเร็จแล้ว", productList);
-  })
-  .catch(error => {
-    console.error("❌ โหลดสินค้าจาก Google Sheets ล้มเหลว:", error);
-  });
+function addRow() {
+  rowCount++;
+  const tbody = document.getElementById("dataBody");
+  const newRow = tbody.insertRow();
 
-  
-  function speak(text) {
-  // ✅ ยกเลิกเสียงที่ยังไม่พูดจบ (สำคัญ!)
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "th-TH";
-  utterance.rate = 1; // ลองใช้ 1.5 หรือ 1.7
-  speechSynthesis.speak(utterance);
-}
+  newRow.className = (rowCount % 2 === 0) ? "even-row" : "odd-row";
 
-window.addEventListener('load', () => {
-  document.querySelector('.summary-box')?.classList.add('summary-fixed');
-  document.querySelector('#changeBox')?.classList.add('change-fixed');
-  document.getElementById("productCode").focus();
-  document.getElementById("productCode").addEventListener("focus", () => {
-    speak("");
-  });
+  const placeholders = ["เลข", "ยอดซื้อ", "ยอดวิ่ง", "2 ตัว", "3 ตรง", "3 โต๊ด", "3 ล่าง", "วิ่งบน", "วิ่งล่าง", "2ครึ่ง"];
 
-  document.getElementById("received").addEventListener("focus", () => {
-  const rows = document.querySelectorAll("#productBody tr");
-
-  if (rows.length === 0) {
-    speak("");
-  } else {
-    const totalQty = rows.length;
-    const totalPrice = Array.from(rows).reduce((sum, row) => {
-      return sum + parseFloat(row.querySelector(".item-row-price").textContent);
-    }, 0);
-    speak(`รวม ${totalPrice} บาท`);
-  }
-});
-
-});
-
- // ✅ 👉 เพิ่มส่วนนี้ต่อท้ายได้เลย
-  window.addEventListener('keydown', function (e) {
-    const codeInput = document.getElementById("productCode");
-
-    // เช็กว่ากำลังกดเลข หรือ Enter
-    const isTyping = /^[0-9]$/.test(e.key) || e.key === "Enter";
-
-    // ถ้ายังไม่มีสินค้าในตาราง และกดพิมพ์ → ให้ focus ที่ช่องรหัส
-    const isPopupOpen = document.getElementById("productPopup")?.style.display === "flex";
-
-	if (!hasProductsInTable() && isTyping && !isPopupOpen) {
-	  codeInput.focus();
-	}
-
-  });
-
-let enterCooldown = false;
-let backspaceCooldown = false;
-
-document.getElementById("productCode").addEventListener("keydown", function (e) {
-  const codeInput = document.getElementById("productCode");
-  const code = codeInput.value.trim();
-  const firstRow = document.querySelector("#productBody tr");
-
-  // ======= ENTER เพิ่มจำนวนสินค้า =======
-  if (e.key === "Enter" && !isEnterPressed) {
-    isEnterPressed = true;
-    e.preventDefault();
-
-    if (code === "") {
-      if (!firstRow) {
-        speak("ยังไม่มีสินค้า");
-        return;
-      }
-
-      const qtyInput = firstRow.querySelector("input[type='number']");
-      let qty = parseInt(qtyInput.value);
-      qty += 1;
-      qtyInput.value = qty;
-
-      qtyInput.classList.add("qty-animate");
-      setTimeout(() => qtyInput.classList.remove("qty-animate"), 300);
-
-      const thaiNumbers = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า", "สิบ"];
-      const toSpeak = qty <= 10 ? thaiNumbers[qty] : qty.toString();
-      speak(toSpeak);
-      updateTotals();
-    } else {
-      findProduct();
+  // 🔁 ลบ placeholder จากแถวก่อนหน้า ถ้ามี
+  if (lastPlaceholderRow) {
+    for (let i = 1; i < 12; i++) {
+      const input = lastPlaceholderRow.cells[i]?.querySelector("input");
+      if (input) input.placeholder = "";
     }
+    clearTimeout(lastPlaceholderTimeout);
   }
 
-  // ======= BACKSPACE ลดจำนวนสินค้า =======
-  else if (e.key === "Backspace" && !isBackspacePressed) {
-    if (code === "" && firstRow) {
-      isBackspacePressed = true;
-      e.preventDefault();
+  for (let i = 0; i < 12; i++) {
+    const cell = newRow.insertCell();
 
-      const qtyInput = firstRow.querySelector("input[type='number']");
-      let qty = parseInt(qtyInput.value);
+    if (i === 0) {
+      cell.textContent = rowCount;
+    } else {
+      const input = document.createElement("input");
 
-      if (qty > 1) {
-        qty -= 1;
-        qtyInput.value = qty;
-
-        qtyInput.classList.add("qty-animate");
-        setTimeout(() => qtyInput.classList.remove("qty-animate"), 300);
-
-        const thaiNumbers = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า", "สิบ"];
-        const toSpeak = qty <= 10 ? thaiNumbers[qty] : qty.toString();
-        speak(toSpeak);
+      if (i === 1) {
+        input.type = "text";
+        input.style.textAlign = "center";
+        input.placeholder = "ชื่อ";
       } else {
-        speak("ลบไม่ได้");
+        input.type = "number";
+        input.inputMode = "numeric";
+        input.pattern = "[0-9]*";
+        input.style.textAlign = "center";
+        input.placeholder = placeholders[i - 2];
       }
 
-      updateTotals();
-    }
-  }
-});
-
-document.getElementById("productCode").addEventListener("keyup", function (e) {
-  if (e.key === "Enter") isEnterPressed = false;
-  if (e.key === "Backspace") isBackspacePressed = false;
-});
-
-
-
-
-document.getElementById("received").addEventListener("keydown", function (e) {
-  if (e.key === "Enter" && !e.repeat) {
-    const rows = document.querySelectorAll("#productBody tr");
-    if (rows.length === 0) {
-    speak("กรุณาใส่สินค้าก่อน");
-    return; // ❌ ยกเลิกไม่ให้ทำอะไรต่อ
-}
-    const received = parseFloat(document.getElementById("received").value);
-    const change = received - totalPrice;
-
-    const html = generateReceiptHTML();
-    showReceiptPopup(html);
-    saveReceiptToHistory(html);
-    saveToLocalSummary();
-
-    speak(`ขอบคุณค่ะ`);
-    //ทอน ${change} 
-    clearAll();
-     setTimeout(() => {
-      document.getElementById("productCode").focus();
-    }, 3000); // 3000 = 3 วินาที
-  }
-});
-
-
-
-document.getElementById("showTodayBtn").addEventListener("click", () => {
-  const box = document.getElementById("todaySummaryBox");
-  box.style.display = "block";
-  setTimeout(() => box.style.display = "none", 10000);
-});
-
-window.addEventListener("keydown", function (e) {
-  if (e.code === "NumpadDecimal") {
-    document.getElementById("productCode").focus();
-    e.preventDefault();
-  } else if (e.code === "NumpadAdd") {
-    document.getElementById("received").focus();
-    e.preventDefault();
-  }
-});
-
-function findProduct() {
-  const code = document.getElementById("productCode").value.trim();
-  document.getElementById("productCode").value = "";
-  let found = false;
-
-  for (let i = 0; i < productList.length; i++) {
-    if (String(productList[i]["รหัสสินค้า"]) === code) {
-      const unitPrice = parseFloat(productList[i]["ราคาขาย"]);
-      const row = document.createElement("tr");
-
-      row.innerHTML = `
-        <td>${productList[i]["รหัสสินค้า"]}</td>
-        <td class="name-cell">${productList[i]["ชื่อสินค้า"]}</td>
-        <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-        <td class='unit-price'>${unitPrice.toFixed(0)}</td>
-        <td class='item-row-price' data-unit-price='${unitPrice}'>${unitPrice.toFixed(0)}</td>
-        <td><button class='delete-btn'>❌</button></td>
-      `;
-      row.querySelector(".delete-btn").addEventListener("click", function () {
-        row.remove();
-        updateTotals();
-        updateRowColors();
+      // 💡 คำนวณรวมเมื่อเปลี่ยนค่า
+      input.addEventListener("input", () => {
+        sumColumns();
+        saveToLocalStorage();
       });
 
-      row.classList.add("row-animate");
-      const tbody = document.getElementById("productBody");
-      tbody.insertBefore(row, tbody.firstChild);
-      updateTotals();
-      updateRowColors();
-      speak(`${unitPrice} บาท`);
-      found = true;
-      break;
-    }
-  }
-
-  if (!found) {
-    const num = parseInt(code);
-    if (!isNaN(num) && num >= 1 && num <= 10000) {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${num}</td>
-        <td>รายการสินค้า</td>
-        <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-        <td class='unit-price'>${num}</td>
-        <td class='item-row-price' data-unit-price='${num}'>${num}</td>
-        <td><button class='delete-btn'>x</button></td>
-      `;
-      row.querySelector(".delete-btn").addEventListener("click", function () {
-        row.remove();
-        updateTotals();
-        updateRowColors();
-      });
-
-      row.classList.add("row-animate");
-      const tbody = document.getElementById("productBody");
-      tbody.insertBefore(row, tbody.firstChild);
-      updateTotals();
-      updateRowColors();
-      speak(`${num} บาท`);
-    } else {
-      speak("ไม่มี");
-    }
-  }
-}
-
-
-
-function updateRowColors_DEPRECATED() {
-  const rows = document.querySelectorAll("#productBody tr");
-  rows.forEach((row, index) => {
-    row.style.backgroundColor = index % 2 === 0 ? "#f2f2f2" : "#ffffff";
-  });
-}
-
-
-function updateTotals() {
-  const rows = document.querySelectorAll("#productBody tr");
-  totalPrice = 0;
-  totalQty = 0;
-
-  rows.forEach(row => {
-    const qtyInput = row.querySelector("input[type='number']");
-    const qty = parseInt(qtyInput.value);
-    const unitPrice = parseFloat(row.querySelector(".item-row-price").getAttribute("data-unit-price") || row.querySelector(".item-row-price").textContent);
-    const itemTotal = qty * unitPrice;
-    row.querySelector(".item-row-price").textContent = itemTotal.toFixed(0);
-    totalQty += qty;
-    totalPrice += itemTotal;
-    if (!row.querySelector(".item-row-price").getAttribute("data-unit-price")) {
-      row.querySelector(".item-row-price").setAttribute("data-unit-price", unitPrice);
-    }
-  });
-
-  document.getElementById("totalQty").textContent = `${totalQty} รายการ`;
-  document.getElementById("totalPrice").textContent = `${totalPrice.toFixed(0)}`;
-  const summaryBox = document.querySelector(".summary-box");
-  summaryBox.classList.add("animate-grow");
-  setTimeout(() => summaryBox.classList.remove("animate-grow"), 300);
-  calculateChange();
-}
-
-let calculateSpeakTimer = null;
-
-function calculateChange() {
-  const receivedInput = document.getElementById("received");
-  const changeBox = document.getElementById("changeAmount");
-  const received = parseFloat(receivedInput.value);
-  const summaryBox = document.querySelector(".summary-box");
-
-  if (!receivedInput.value || isNaN(received)) {
-    changeBox.textContent = "";
-    summaryBox.classList.remove("animate-shrink");
-    clearTimeout(calculateSpeakTimer); // ป้องกันเสียงค้าง
-    return;
-  }
-
-  const change = received - totalPrice;
-  changeBox.textContent = `${change.toFixed(0)}`;
-  summaryBox.classList.add("animate-shrink");
-
-  changeBox.classList.remove("animate-grow");
-  void changeBox.offsetWidth;
-  changeBox.classList.add("animate-grow");
-
-  // ✅ ✅ ✅ เพิ่มดีเลย์การพูดเมื่อหยุดพิมพ์แล้ว 1 วินาที
-  clearTimeout(calculateSpeakTimer);
-  calculateSpeakTimer = setTimeout(() => {
-    if (change >= 0) {
-      speak(`รับเงิน ${received.toFixed(0)} บาท`);
-      setTimeout(() => speak(`เงินทอน ${change.toFixed(0)} บาท`), 800);
-    } else {
-      speak(`รับเงินไม่พอ`);
-    }
-  }, 1000); // ← รอ 1 วิ หลังหยุดพิมพ์
-}
-
-
-
-function clearAll() {
-  document.getElementById("productBody").innerHTML = "";
-  document.getElementById("received").value = "";
-  totalPrice = 0;
-  totalQty = 0;
-  updateTotals();
-  const summaryBox = document.querySelector(".summary-box");
-  summaryBox.classList.remove("animate-shrink");
-  summaryBox.style.opacity = "1";
-}
-
-function saveToLocalSummary() {
-  const now = new Date();
-  const dateKey = now.toLocaleDateString("th-TH");
-  let summary = JSON.parse(localStorage.getItem("posSummary")) || {};
-  
-   // ✅ ทำความสะอาดก่อน
-  summary = cleanupOldSummary(summary);
-
- if (summary[dateKey]) {
-  summary[dateKey].price += totalPrice;
-  summary[dateKey].qty += totalQty;
-} else {
-  summary[dateKey] = { price: totalPrice, qty: totalQty };
-}
-
-
-  localStorage.setItem("posSummary", JSON.stringify(summary));
-  updateTodaySummaryBox();
-}
-
-function updateTodaySummaryBox() {
-  const dateKey = new Date().toLocaleDateString("th-TH");
-  const summary = JSON.parse(localStorage.getItem("posSummary")) || {};
-  const todayTotal = summary[dateKey] || { price: 0, qty: 0 };
-  document.getElementById("todayTotal").textContent = `ขายได้ ${todayTotal.qty} ชิ้น รวมยอด ฿${todayTotal.price.toFixed(2)}`;
-
-}
-
-// เรียกทันทีเมื่อโหลดหน้า
-updateTodaySummaryBox();
-
-function updateRowColors_OLD() {
-  const rows = document.querySelectorAll("#productBody tr");
-  rows.forEach((row, index) => {
-    row.style.backgroundColor = index % 2 === 0 ? "#f2f2f2" : "#ffffff";
-  });
-}
-
-
-function updateRowColors_OLD() {
-  const rows = document.querySelectorAll("#productBody tr");
-  rows.forEach((row, index) => {
-    row.removeAttribute("class");
-    row.style.backgroundColor = (index % 2 === 0) ? "#f2f2f2" : "#ffffff";
-  });
-}
-
-
-function updateRowColors() {
-  const rows = document.querySelectorAll("#productBody tr");
-  rows.forEach((row, index) => {
-    const bg = (index % 2 === 0) ? "#f2f2f2" : "#ffffff";
-    row.querySelectorAll("td").forEach(cell => {
-      cell.style.backgroundColor = bg;
-    });
-  });
-}
-
-
-function showReceiptPopup() {
-  const popup = document.createElement("div");
-  popup.style.position = "fixed";
-  popup.style.top = "50%";
-  popup.style.left = "55%";
-  popup.style.transform = "translate(-50%, -50%)"; // <<< ให้กลางจริง
-  popup.style.padding = "15px";
-  popup.style.backgroundColor = "white";
-  popup.style.color = "black";
-  popup.style.border = "1px solid #ccc";
-  popup.style.zIndex = "9999";
-  popup.style.width = "300px";
-  popup.style.fontFamily = "monospace";
-  popup.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
-  popup.innerHTML = generateReceiptHTML();
-  document.body.appendChild(popup);
-  setTimeout(() => popup.remove(), 5000);
-}
-
-
-function generateReceiptHTML() {
-  const rows = document.querySelectorAll("#productBody tr");
-  let listHTML = "<table style='width:100%; border-collapse: collapse; font-size: 12px;'>"
-               + "<tr><th style='text-align:left;'>สินค้า</th><th style='text-align:center;'>จำนวน</th><th style='text-align:right;'>ราคา</th></tr>";
-
-  rows.forEach(row => {
-    const cols = row.querySelectorAll("td");
-    const name = cols[1].textContent;
-    const qty = cols[2].querySelector("input").value;
-    const price = cols[3].textContent;
-    listHTML += "<tr>"
-              + `<td>${name}</td>`
-              + `<td style='text-align:center;'>${qty}</td>`
-              + `<td style='text-align:right;'>฿${price}</td>`
-              + "</tr>";
-  });
-
-  listHTML += "</table>";
-
-  const date = new Date();
-  const time = date.toLocaleTimeString("th-TH");
-  const dateStr = date.toLocaleDateString("th-TH");
-
-  const received = parseFloat(document.getElementById("received").value || 0);
-  const change = received - totalPrice;
-
-  return `
-    <div style="text-align:left;">
-      <strong style="font-size:16px;">ร้านเจ้พิน</strong><br>
-      <small>${dateStr} ${time}</small><br><hr>
-      ${listHTML}<hr>
-      <div style="text-align:right;">
-        รวม: ฿${totalPrice.toFixed(2)}<br>
-        รับเงิน: ฿${received.toFixed(2)}<br>
-        เงินทอน: ฿${change.toFixed(2)}<br><br>
-      </div>
-      <div style="text-align:center;">ขอบคุณที่อุดหนุน ❤️</div>
-    </div>
-  `;
-}
-
-function saveReceiptToHistory(receiptHTML) {
-  let history = JSON.parse(localStorage.getItem("receiptHistory")) || [];
-  history.push(receiptHTML);
-
-  if (history.length > 200) {
-    history.shift(); // ลบใบแรกออก
-  }
-
-  localStorage.setItem("receiptHistory", JSON.stringify(history));
-}
-
-
-function showReceiptHistory() {
-  const history = JSON.parse(localStorage.getItem("receiptHistory")) || [];
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.top = "0";
-  container.style.left = "0";
-  container.style.width = "80vw";
-  container.style.height = "100vh";
-  container.style.overflowY = "scroll";
-  container.style.overflow = "auto";
-  container.style.background = "rgba(0,0,0,0.7)";
-  container.style.zIndex = "9999";
-  container.style.padding = "30px";
-  container.style.color = "#000";
-
-  let html = "<div style='background:white; padding:12px; max-width:500px; font-size:12px; margin:auto; border-radius:10px;'>";
-  html += `<h3>ใบเสร็จย้อนหลัง (${history.length} ใบ)</h3><hr>`;
-  for (let i = history.length - 1; i >= 0; i--) {
-    html += `<div style='margin-bottom:20px; border-bottom:1px dashed #ccc;'>${history[i]}</div>`;
-  }
-html += "<button onclick='this.closest(`div`).parentElement.remove()' style='position:absolute; top:25px; right:370px;'>ปิด</button>";
-html += `<h3 style='text-align:center;'>ใบเสร็จย้อนหลัง (${history.length} ใบ)</h3><hr>`;
-
-  container.innerHTML = html;
-  document.body.appendChild(container);
-}
-
-
-function updateDateTime() {
-  const now = new Date();
-
-  const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-
-  document.querySelector('.date').textContent = now.toLocaleDateString('th-TH', dateOptions);
-  document.querySelector('.time').textContent = now.toLocaleTimeString('th-TH', timeOptions);
-}
-
-// เรียกทุกวินาที
-setInterval(updateDateTime, 1000);
-
-// เรียกครั้งแรก
-updateDateTime();
-
-function speak(text) {
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "th-TH"; // ตั้งค่าให้พูดภาษาไทย
-  utterance.rate = 1.0;     // ความเร็วในการพูด (1.0 = ปกติ)
-  speechSynthesis.speak(utterance);
-}
-
-function cleanupOldSummary(summary) {
-  const today = new Date();
-  const maxDays = 60;
-
-  const sortedKeys = Object.keys(summary).sort((a, b) => {
-    const [da, ma, ya] = a.split('/');
-    const [db, mb, yb] = b.split('/');
-    const dateA = new Date(+ya - 543, +ma - 1, +da);
-    const dateB = new Date(+yb - 543, +mb - 1, +db);
-    return dateA - dateB;
-  });
-
-  // ถ้ามากกว่า 60 วัน → ตัดทิ้ง
-  while (sortedKeys.length > maxDays) {
-    const oldestKey = sortedKeys.shift();
-    delete summary[oldestKey];
-  }
-
-  return summary;
-}
-
-function showLastDays(days) {
-  const summary = JSON.parse(localStorage.getItem("posSummary")) || {};
-  const now = new Date();
-  let totalPrice = 0;
-  let totalQty = 0;
-
-  Object.keys(summary).forEach(dateKey => {
-    const [d, m, y] = dateKey.split('/');
-    const date = new Date(+y - 543, +m - 1, +d);
-    const diff = (now - date) / (1000 * 60 * 60 * 24);
-    if (diff <= days) {
-      const item = summary[dateKey];
-      if (item && typeof item.price === 'number' && typeof item.qty === 'number') {
-      totalPrice += item.price;
-      totalQty += item.qty;
-      }
-    }
-  });
-
-	const rangeBox = document.getElementById("rangeTotal");
-	rangeBox.textContent = `${totalQty} ชิ้น / ฿${totalPrice.toFixed(2)}`;
-	rangeBox.classList.remove("hidden");
-	rangeBox.style.display = "block";
-	rangeBox.offsetHeight; // trigger reflow
-
-	clearTimeout(rangeTimer);
-	rangeTimer = setTimeout(() => {
-	  rangeBox.classList.add("hidden");
-	  setTimeout(() => {
-		rangeBox.style.display = "none";
-	  }, 500); // รอ animation จบ
-	}, 10000);
-
-}
-
-flatpickr("#customRange", {
-  mode: "range",
-  dateFormat: "d/m/Y",
-  locale: "th",
-
-  formatDate: (date, format, locale) => {
-    const d = date.getDate().toString().padStart(2, '0');
-    const m = (date.getMonth() + 1).toString().padStart(2, '0');
-    const y = (date.getFullYear() + 543).toString(); // แปลงเป็น พ.ศ.
-    return `${d}/${m}/${y}`;
-  },
-
-  // ✨ ส่วนแสดง พ.ศ. ในปฏิทิน (ยังใช้เหมือนเดิม)
-  onReady: ([selectedDates], dateStr, instance) => {
-    convertToBuddhistYear(instance);
-  },
-  onMonthChange: function(selectedDates, dateStr, instance) {
-    convertToBuddhistYear(instance);
-  },
-  onYearChange: function(selectedDates, dateStr, instance) {
-    convertToBuddhistYear(instance);
-  },
-  onOpen: function(selectedDates, dateStr, instance) {
-    convertToBuddhistYear(instance);
-  },
-
-  // ✅ ฟังก์ชันเดิมของคุณ
-  onChange: function (selectedDates) {
-  if (selectedDates.length === 2) {
-    const summary = JSON.parse(localStorage.getItem("posSummary")) || {};
-    const [startRaw, endRaw] = selectedDates;
-
-    const normalizeDate = (d) => {
-      const year = d.getFullYear();
-      const realYear = year > 2500 ? year - 543 : year;
-      return new Date(realYear, d.getMonth(), d.getDate());
-    };
-
-    const start = normalizeDate(startRaw);
-    const end = normalizeDate(endRaw);
-
-    let totalPrice = 0;
-    let totalQty = 0;
-
-    Object.keys(summary).forEach(dateKey => {
-      const [d, m, y] = dateKey.split('/');
-      const current = new Date(+y - 543, +m - 1, +d);
-
-      if (current >= start && current <= end) {
-        const item = summary[dateKey];
-        totalPrice += item.price;
-        totalQty += item.qty;
-      }
-    });
-
-    const resultBox = document.getElementById("rangeTotal");
-    if (totalPrice === 0 && totalQty === 0) {
-      resultBox.textContent = "ไม่พบข้อมูล";
-    } else {
-      resultBox.textContent = `${totalQty} ชิ้น / ${totalPrice.toFixed(2)}฿`;
-    }
-
-    resultBox.classList.remove("hidden");
-    resultBox.style.display = "block";
-    resultBox.offsetHeight;
-
-    clearTimeout(rangeTimer);
-    rangeTimer = setTimeout(() => {
-      resultBox.classList.add("hidden");
-      setTimeout(() => {
-        resultBox.style.display = "none";
-      }, 500);
-    }, 10000);
-  }
-}
-
-});
-
-
-
-function convertToBuddhistYear(fpInstance) {
-  setTimeout(() => {
-    const yearElements = fpInstance.calendarContainer.querySelectorAll(".flatpickr-current-month .cur-year");
-    yearElements.forEach(el => {
-      const year = parseInt(el.value || el.innerText);
-      if (year < 2500) {
-        const buddhistYear = year + 543;
-        el.value = buddhistYear;
-        el.innerText = buddhistYear;
-      }
-    });
-  }, 5);
-}
-
-function showYesterday() {
-  const summary = JSON.parse(localStorage.getItem("posSummary")) || {};
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const key = yesterday.toLocaleDateString("th-TH");
-  const value = summary[key];
-  const rangeBox = document.getElementById("rangeTotal");
-
-  if (value) {
-    rangeBox.textContent = `${value.qty} ชิ้น / ฿${value.price.toFixed(2)}`;
-  } else {
-    rangeBox.textContent = `ไม่มีข้อมูล`;
-  }
-
-  rangeBox.classList.remove("hidden");
-  rangeBox.style.display = "block";
-  rangeBox.offsetHeight;
-
-  clearTimeout(rangeTimer);
-  rangeTimer = setTimeout(() => {
-    rangeBox.classList.add("hidden");
-    setTimeout(() => {
-      rangeBox.style.display = "none";
-    }, 500);
-  }, 10000);
-}
-
-function hasProductsInTable() {
-  return document.querySelectorAll("#productBody tr").length > 0;
-}
-
-// ✅ ให้ Enter ใช้แทนการกด "บันทึก" ใน popup เพิ่มสินค้า
-document.addEventListener("keydown", function (e) {
-  const popup = document.getElementById("productPopup");
-  const isVisible = popup && popup.style.display === "flex";
-
-  // กด Enter ขณะ popup เปิด
-  if (isVisible && e.key === "Enter") {
-    e.preventDefault(); // ป้องกัน Enter ไปกระตุ้นฟอร์มอื่น
-    document.getElementById("saveProductBtn").click(); // คลิกปุ่มบันทึก
-  }
-});
-
-window.addEventListener("load", () => {
-  const localData = localStorage.getItem("productList");
-  if (localData) {
-    productList = JSON.parse(localData);
-    console.log("✅ โหลดสินค้าจาก localStorage แล้ว", productList);
-  } else {
-    fetchAndStoreProductList(); // ถ้าไม่มีใน local ให้โหลดจากเน็ต
-  }
-});
-
-// โหลดจาก Google Sheets แล้วเก็บไว้ใน localStorage
-function fetchAndStoreProductList() {
-  fetch("https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec")
-    .then(res => res.json())
-    .then(data => {
-      productList = data;
-      localStorage.setItem("productList", JSON.stringify(data));
-      console.log("✅ โหลดจาก Google Sheets แล้วบันทึกไว้ใน localStorage", productList);
-    })
-    .catch(err => {
-      console.error("❌ โหลดจาก Google Sheets ล้มเหลว", err);
-    });
-}
-
-
-
-const form = document.getElementById('productForm');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = {
-        barcode: document.getElementById('barcode').value,
-        name: document.getElementById('name').value,
-        price: document.getElementById('price').value
-      };
-
-      const response = await fetch('https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json'
+      // 💡 เพิ่มแถวใหม่เมื่อกด Enter
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addRow();
+
+          // โฟกัสช่องชื่อในแถวใหม่
+          setTimeout(() => {
+            const tbody = document.getElementById("dataBody");
+            const lastRow = tbody.rows[tbody.rows.length - 1];
+            if (lastRow && lastRow.cells[1]) {
+              const input = lastRow.cells[1].querySelector("input");
+              if (input) input.focus();
+            }
+          }, 10);
         }
       });
 
-      if (response.ok) {
-        alert('บันทึกสำเร็จ!');
-        form.reset();
-      } else {
-        alert('เกิดข้อผิดพลาด');
+      cell.appendChild(input);
+    }
+  }
+
+  sumColumns();
+  saveToLocalStorage();
+
+  // ⏱️ ลบ placeholder หลัง 15 วินาที
+  lastPlaceholderRow = newRow;
+  lastPlaceholderTimeout = setTimeout(() => {
+    for (let i = 1; i < 12; i++) {
+      const input = newRow.cells[i]?.querySelector("input");
+      if (input) input.placeholder = "";
+    }
+    lastPlaceholderRow = null;
+  }, 15000);
+}
+
+
+
+
+
+function sumColumns() {
+  const tbody = document.getElementById("dataBody");
+  const sumRow = document.getElementById("sumRow");
+  sumRow.innerHTML = `<td colspan="3" style="font-weight: bold;">รวมยอด</td>`;
+
+  const totals = new Array(9).fill(0);
+
+  for (let i = 0; i < tbody.rows.length; i++) {
+    const row = tbody.rows[i];
+
+    let colIndex = 0;
+    for (let j = 3; j <= 11; j++) {
+      const cell = row.cells[j];
+      if (!cell) continue;
+      const input = cell.querySelector("input");
+      const value = input ? parseFloat(input.value) || 0 : 0;
+      totals[colIndex] += value;
+      colIndex++;
+    }
+  }
+
+  for (let total of totals) {
+    const td = document.createElement("td");
+    td.textContent = total.toLocaleString();
+    sumRow.appendChild(td);
+  }
+}
+
+let discountPerTable = JSON.parse(localStorage.getItem("discountPerTable") || "{}");
+
+function showSummaryForTable(tableName) {
+  const rows = JSON.parse(localStorage.getItem("data_" + tableName)) || [];
+
+  let sumBuy = 0, sumRun = 0;
+  let t2 = 0, t3s = 0, t3t = 0, t3l = 0, trunTop = 0, trunBot = 0, tHalf = 0;
+
+  for (const row of rows) {
+    const buy = parseFloat(row[2]) || 0;
+    const run = parseFloat(row[3]) || 0;
+    const c2 = parseFloat(row[4]) || 0;
+    const c3s = parseFloat(row[5]) || 0;
+    const c3t = parseFloat(row[6]) || 0;
+    const c3l = parseFloat(row[7]) || 0;
+    const ctop = parseFloat(row[8]) || 0;
+    const cbot = parseFloat(row[9]) || 0;
+    const chalf = parseFloat(row[10]) || 0;
+
+    sumBuy += buy;
+    sumRun += run;
+    t2 += c2;
+    t3s += c3s;
+    t3t += c3t;
+    t3l += c3l;
+    trunTop += ctop;
+    trunBot += cbot;
+    tHalf += chalf;
+  }
+
+  const discount = discountPerTable[tableName] ?? 30; // ถ้าไม่มี ใช้ 30%
+  const buyNet = Math.round(sumBuy * (1 - discount / 100));
+  const runNet = Math.round(sumRun * 0.90);
+  const totalIn = buyNet + runNet;
+
+  const reward2 = Math.round(t2 * 70);
+  const reward3s = Math.round(t3s * 500);
+  const reward3t = Math.round(t3t * 100);
+  const reward3l = Math.round(t3l * 120);
+  const rewardTop = Math.round(trunTop * 3);
+  const rewardBot = Math.round(trunBot * 4);
+  const rewardHalf = Math.round(tHalf * 35);
+
+  const totalOut = reward2 + reward3s + reward3t + reward3l + rewardTop + rewardBot + rewardHalf;
+  const net = totalIn - totalOut;
+
+  let allTables = JSON.parse(localStorage.getItem("tableList")) || [];
+  let selectorHTML = `
+    <div style="font-size:13px; margin: 6px 0;">
+      เลือกชุด: 
+      <select id="summaryTableSelector">
+        ${allTables.map(name => `<option value="${name}" ${name === tableName ? 'selected' : ''}>${name}</option>`).join("")}
+      </select>
+      <label> หักยอดซื้อ: <input type="number" id="summaryDiscountInput" value="${discount}" style="width:40px"> %</label>
+      <button onclick="applySummaryDiscount()">✅ ใช้</button>
+    </div>
+  `;
+
+  let summaryHTML = selectorHTML + `
+    <button onclick="shareSummary()">📤 แชร์</button>
+    <h3>📌 สรุปยอดซื้อ</h3>
+  `;
+
+  if (sumBuy > 0) summaryHTML += `ยอดซื้อทั้งหมด: ${sumBuy.toLocaleString()} - ${discount}% = <strong>${buyNet.toLocaleString()} บาท</strong><br>`;
+  if (sumRun > 0) summaryHTML += `ยอดวิ่งทั้งหมด: ${sumRun.toLocaleString()} - 10% = <strong>${runNet.toLocaleString()} บาท</strong><br>`;
+  if (sumBuy > 0 || sumRun > 0) summaryHTML += `✅ รวมรายรับ: <strong>${totalIn.toLocaleString()} บาท</strong><br><br>`;
+
+  summaryHTML += `<h3>🎯 สรุปยอดถูก</h3>`;
+  if (t2 > 0) summaryHTML += `ถูก 2 ตัว: ${t2.toLocaleString()} × 70 = <strong>${reward2.toLocaleString()} บาท</strong><br>`;
+  if (t3s > 0) summaryHTML += `ถูก 3 ตรง: ${t3s.toLocaleString()} × 500 = <strong>${reward3s.toLocaleString()} บาท</strong><br>`;
+  if (t3t > 0) summaryHTML += `ถูก 3 โต๊ด: ${t3t.toLocaleString()} × 100 = <strong>${reward3t.toLocaleString()} บาท</strong><br>`;
+  if (t3l > 0) summaryHTML += `ถูก 3 ล่าง: ${t3l.toLocaleString()} × 120 = <strong>${reward3l.toLocaleString()} บาท</strong><br>`;
+  if (trunTop > 0) summaryHTML += `วิ่งบน: ${trunTop.toLocaleString()} × 3 = <strong>${rewardTop.toLocaleString()} บาท</strong><br>`;
+  if (trunBot > 0) summaryHTML += `วิ่งล่าง: ${trunBot.toLocaleString()} × 4 = <strong>${rewardBot.toLocaleString()} บาท</strong><br>`;
+  if (tHalf > 0) summaryHTML += `2 จ่ายครึ่ง: ${tHalf.toLocaleString()} × 35 = <strong>${rewardHalf.toLocaleString()} บาท</strong><br>`;
+  if (totalOut > 0) summaryHTML += `✅ รวมรายจ่าย: <strong>${totalOut.toLocaleString()} บาท</strong><br><br>`;
+
+  summaryHTML += `
+    <h3>📊 สรุปรวม</h3>
+    <strong style="color:${net < 0 ? 'red' : 'green'}">
+      ${net < 0 ? 'จ่ายพิน' : 'พินจ่าย'}
+    </strong>: ${Math.abs(net).toLocaleString()} บาท
+  `;
+
+  document.getElementById("summaryContent").innerHTML = summaryHTML;
+  document.getElementById("summaryModal").style.display = "block";
+
+  document.getElementById("summaryTableSelector").onchange = e => {
+    const selectedTable = e.target.value;
+    showSummaryForTable(selectedTable);
+  };
+}
+
+function showSummary() {
+  showSummaryForTable(currentTableName);
+}
+
+function applySummaryDiscount() {
+  const input = document.getElementById("summaryDiscountInput");
+  const newValue = parseFloat(input.value);
+  const tableSelect = document.getElementById("summaryTableSelector");
+  const selectedTable = tableSelect?.value || currentTableName;
+
+  if (!isNaN(newValue) && newValue >= 0 && newValue <= 100) {
+    discountPerTable[selectedTable] = newValue;
+    localStorage.setItem("discountPerTable", JSON.stringify(discountPerTable));
+    showSummaryForTable(selectedTable);
+  }
+}
+
+function setCustomPercentage() {
+  const name = document.getElementById("personSelect").value;
+  const percent = parseFloat(document.getElementById("customBuyPercent").value);
+  if (name && !isNaN(percent)) {
+    customPercentages[name] = percent;
+    showIndividualSummary();
+  }
+}
+
+function updatePercentages() {
+  percentBelow5000 = parseFloat(document.getElementById("percentBelow")?.value) || 15;
+  percentAbove5000 = parseFloat(document.getElementById("percentAbove")?.value) || 20;
+  percentRun = parseFloat(document.getElementById("percentRun")?.value) || 5;
+  showIndividualSummary(); // อัปเดต popup ทันที
+}
+
+function closeSummary() { document.getElementById("summaryModal").style.display = "none"; }
+
+function showIndividualSummary() {
+  const tableList = JSON.parse(localStorage.getItem("tableList")) || [];
+  const summary = {};
+  const detailList = {};
+  let totalWorkSheets = 0;
+
+  for (const tableName of tableList) {
+    const rows = JSON.parse(localStorage.getItem("data_" + tableName)) || [];
+    for (const row of rows) {
+      const name = row[0]?.trim();
+      const buy = parseFloat(row[2]) || 0;
+      const run = parseFloat(row[3]) || 0;
+
+      if (!name) continue;
+
+      if (!summary[name]) {
+        summary[name] = { buy: 0, run: 0, count: 0 };
+        detailList[name] = [];
       }
-    });
-    
-    
+
+      summary[name].buy += buy;
+      summary[name].run += run;
+      summary[name].count += 1;
+      detailList[name].push({ table: tableName, amount: buy });
+      totalWorkSheets += 1;
+    }
+  }
+
+  let html = `
+    <div style="font-size: 13px; margin-bottom: 8px">
+      ตั้งค่าเปอร์เซ็นต์เฉพาะบุคคล:<br>
+      <select id="personSelect">
+        <option value="">-- เลือกชื่อ --</option>
+        ${Object.keys(summary).map(name => `<option value="${name}">${name}</option>`).join('')}
+      </select>
+      <label> ยอดซื้อ: <input type="number" id="customBuyPercent" style="width:40px">%</label>
+      <button onclick="setCustomPercentage()">✅ กำหนดให้บุคคลนี้</button>
+    </div>
+    <button onclick="shareSummary()">📤 แชร์</button>
+    <h3>📋 สรุปรายบุคคล (รวมทุกชุด ${totalWorkSheets} ใบงาน)</h3>
+  `;
+
+  for (const name in summary) {
+    const person = summary[name];
+    const buys = detailList[name];
+    const customRate = customPercentages[name];
+    const buyRate = customRate !== undefined ? customRate : (person.buy < 5000 ? percentBelow5000 : percentAbove5000);
+    const buyNet = person.buy * ((100 - buyRate) / 100);
+    const runNet = person.run * (percentRun / 100);
+    const totalNet = buyNet + runNet;
+
+    html += `<strong>${name} ${person.count > 1 ? person.count + " ใบงาน" : ""}</strong><br>`;
+
+    if (person.count > 1) {
+      let count = 1;
+      buys.forEach((b) => {
+        html += `${count++}. ยอดซื้อ ${b.amount.toLocaleString()}<br>`;
+      });
+    }
+
+    html += `ยอดซื้อรวม ${person.buy.toLocaleString()} - ${buyRate}% = <strong>${Math.round(buyNet).toLocaleString()}</strong> บาท<br>`;
+
+    if (person.run > 0) {
+      html += `ยอดวิ่ง ${person.run.toLocaleString()} - 5% = <strong>${Math.round(runNet).toLocaleString()}</strong> บาท<br>`;
+    }
+
+    html += `รวม: <strong>${Math.round(totalNet).toLocaleString()}</strong> บาท<hr>`;
+  }
+
+  document.getElementById("summaryContent").innerHTML = html;
+  document.getElementById("summaryModal").style.display = "block";
+}
+
+function downloadPDF() {
+  const element = document.getElementById("only-table");
+
+  const opt = {
+    margin: 0.5,
+    filename: `รายงาน_เฉพาะตาราง.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(element).save();
+}
+
+
+function shareSummary() {
+  const summaryText = document.getElementById("summaryContent").innerText;
+
+  if (navigator.share) {
+    navigator.share({
+      title: '📋 สรุปรายการ',
+      text: summaryText,
+    })
+    .then(() => console.log('แชร์สำเร็จ'))
+    .catch((error) => console.error('เกิดข้อผิดพลาดในการแชร์:', error));
+  } else {
+    alert('เบราว์เซอร์นี้ไม่รองรับการแชร์');
+  }
+}
+
+function saveToLocalStorage() {
+  const rows = [];
+  const tbody = document.getElementById("dataBody");
+  for (let row of tbody.rows) {
+    const inputs = Array.from(row.querySelectorAll("input")).map(input => input.value);
+    rows.push(inputs);
+  }
+  localStorage.setItem("data_" + currentTableName, JSON.stringify(rows));
+}
+
+function loadFromLocalStorage() {
+  const data = JSON.parse(localStorage.getItem("myTableData"));
+  if (data) {
+    for (let inputs of data) {
+      addRowWithData(inputs);
+    }
+    sumColumns();
+  }
+}
+
+function addRowWithData(data) {
+  rowCount++;
+  const tbody = document.getElementById("dataBody");
+  const newRow = tbody.insertRow();
+  newRow.className = (rowCount % 2 === 0) ? "even-row" : "odd-row";
+
+  for (let i = 0; i < 12; i++) {
+    const cell = newRow.insertCell();
+    if (i === 0) {
+      cell.textContent = rowCount;
+    } else {
+      const input = document.createElement("input");
+      input.value = data[i - 1] || "";
+      if (i === 1) {
+        input.type = "text";
+      } else {
+        input.type = "number";
+        input.addEventListener("input", () => {
+          sumColumns();
+          saveToLocalStorage();
+        });
+      }
+      cell.appendChild(input);
+    }
+  }
+}
+
+function clearAllData() {
+  if (confirm("คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลทั้งหมด?")) {
+    localStorage.removeItem("myTableData");
+    document.getElementById("dataBody").innerHTML = "";
+    rowCount = 0;
+    sumColumns();
+  }
+}
+function showTodayDate() {
+  const today = new Date();
+  const options = { day: '2-digit', month: 'long', year: 'numeric' };
+  const formatted = today.toLocaleDateString('th-TH', options);
+  document.getElementById('today-date').textContent = `วันที่ ${formatted}`;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const savedTables = JSON.parse(localStorage.getItem("tableList")) || [];
+  if (savedTables.length === 0) {
+    // ถ้ายังไม่มีข้อมูลเลย ให้สร้างชุดเริ่มต้น
+    localStorage.setItem("tableList", JSON.stringify(["น้ำหอม+ยุพิน"]));
+    updateTableTitle();
+
+  }
+
+  // โหลดชื่อชุดล่าสุด
+  currentTableName = savedTables.includes(currentTableName) ? currentTableName : savedTables[0];
+  loadTable(currentTableName);
+  showTodayDate();
+});
+
+
+function loadTable(name) {
+  currentTableName = name;
+  rowCount = 0;
+  document.getElementById("dataBody").innerHTML = "";
+  const data = JSON.parse(localStorage.getItem("data_" + name));
+  if (data) {
+    data.forEach(inputs => addRowWithData(inputs));
+    sumColumns();
+  }
+  updateTableSelector();
+  updateTableTitle();
+
+}
+
+let currentTableName = "น้ำหอม+ยุพิน";
+
+function createNewTable() {
+  const name = document.getElementById("newTableName").value.trim();
+  if (!name) return alert("กรุณาใส่ชื่อชุด");
+  let tableList = JSON.parse(localStorage.getItem("tableList")) || [];
+  if (!tableList.includes(name)) {
+    tableList.push(name);
+    localStorage.setItem("tableList", JSON.stringify(tableList));
+  }
+  document.getElementById("newTableName").value = "";
+  loadTable(name);
+}
+
+function updateTableSelector() {
+  const selector = document.getElementById("tableSelector");
+  const list = JSON.parse(localStorage.getItem("tableList")) || [];
+  selector.innerHTML = list.map(name => `<option value="${name}" ${name === currentTableName ? 'selected' : ''}>${name}</option>`).join("");
+  selector.onchange = e => loadTable(e.target.value);
+}
+
+function deleteCurrentTable() {
+  if (!confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบชุด "${currentTableName}"?`)) return;
+
+  // ลบข้อมูลชุดนี้
+  localStorage.removeItem("data_" + currentTableName);
+
+  // ลบออกจาก list
+  let list = JSON.parse(localStorage.getItem("tableList")) || [];
+  list = list.filter(name => name !== currentTableName);
+  localStorage.setItem("tableList", JSON.stringify(list));
+
+  // ถ้ามีชุดเหลืออยู่ ให้โหลดชุดใหม่
+  if (list.length > 0) {
+    currentTableName = list[0];
+    loadTable(currentTableName);
+  } else {
+    // ถ้าไม่มีชุดเลย ให้เคลียร์ตาราง
+    currentTableName = "";
+    document.getElementById("dataBody").innerHTML = "";
+    rowCount = 0;
+    sumColumns();
+    updateTableSelector();
+  }
+}
+
+function updateTableTitle() {
+  const title = document.getElementById("tableTitle");
+  if (title && currentTableName) {
+    title.textContent = currentTableName;
+  }
+}
+
+function showProfitSummary() {
+  const tableList = JSON.parse(localStorage.getItem("tableList")) || [];
+  let total3Lower = 0;
+  let totalBuyAll = 0;
+  let totalRunAll = 0;
+  const percentInputs = {};
+
+  let html = `
+    <div style="font-size:14px; font-weight:bold; margin-bottom: 6px;">
+      🧾 ยอดซื้อรวมทั้งหมด: <span id="totalAll">-</span> บาท
+    </div>
+    <h3>💰 สรุปยอดกำไร</h3>
+    <div style="font-size:13px; margin-bottom: 12px;">
+      <strong>กรอกเปอร์เซ็นต์แต่ละชุด</strong><br>
+  `;
+
+  for (const tableName of tableList) {
+    const rows = JSON.parse(localStorage.getItem("data_" + tableName)) || [];
+
+    let sumBuy = 0, sumRun = 0, sum3Lower = 0;
+    for (const row of rows) {
+      sumBuy += parseFloat(row[2]) || 0;
+      sumRun += parseFloat(row[3]) || 0;
+      sum3Lower += parseFloat(row[7]) || 0;
+    }
+
+    if (sumBuy === 0 && sumRun === 0) continue;
+
+    let defaultBuy = "";
+    if (tableName.includes("น้ำหอม + ยุพิน")) defaultBuy = 8;
+    else if (tableName.includes("ติ๊ก + ยุพิน")) defaultBuy = 10;
+
+    const defaultRun = 5;
+
+    percentInputs[tableName] = { buy: sumBuy, run: sumRun };
+    total3Lower += sum3Lower;
+    totalBuyAll += sumBuy;
+    totalRunAll += sumRun;
+
+    html += `<div style="margin-top:8px;"><strong>ชุด ${tableName}</strong><br>`;
+    if (sumBuy > 0) {
+      html += `ยอดซื้อ: ${sumBuy.toLocaleString()} บาท 
+        <input type="number" id="buyPercent_${tableName}" value="${defaultBuy}" style="width:50px"> %<br>`;
+    }
+    if (sumRun > 0) {
+      html += `ยอดวิ่ง: ${sumRun.toLocaleString()} บาท 
+        <input type="number" id="runPercent_${tableName}" value="${defaultRun}" style="width:50px"> %<br>`;
+    }
+    html += `</div>`;
+  }
+
+  html += `
+    <br><button onclick="calculateProfitSummary()" style="margin-top:10px;">📊 คำนวณกำไร</button>
+    </div>
+  `;
+
+  document.getElementById("summaryContent").innerHTML = html;
+  document.getElementById("summaryModal").style.display = "block";
+  document.getElementById("totalAll").textContent = (totalBuyAll + totalRunAll).toLocaleString();
+
+  window.calculateProfitSummary = function () {
+    let profitLines = "";
+    let totalProfit = 0;
+
+    for (const tableName of tableList) {
+      const sums = percentInputs[tableName];
+      if (!sums) continue;
+
+      const sumBuy = sums.buy;
+      const sumRun = sums.run;
+
+      const buyInput = document.getElementById("buyPercent_" + tableName);
+      const runInput = document.getElementById("runPercent_" + tableName);
+
+      const buyPercent = buyInput ? parseFloat(buyInput.value) || 0 : 0;
+      const runPercent = runInput ? parseFloat(runInput.value) || 0 : 0;
+
+      const profitBuy = Math.round(sumBuy * buyPercent / 100);
+      const profitRun = Math.round(sumRun * runPercent / 100);
+      const sumTotal = profitBuy + profitRun;
+
+      totalProfit += sumTotal;
+
+      profitLines += `<strong>ชุด ${tableName}</strong><br>`;
+      if (sumBuy > 0) profitLines += `${sumBuy.toLocaleString()} × ${buyPercent}% = <strong>${profitBuy.toLocaleString()}</strong> บาท<br>`;
+      if (sumRun > 0) profitLines += `${sumRun.toLocaleString()} × ${runPercent}% = <strong>${profitRun.toLocaleString()}</strong> บาท<br>`;
+      profitLines += `<br>`;
+    }
+
+    const reward3Lower = Math.round(total3Lower * 20);
+    const grandTotal = totalProfit + reward3Lower;
+    const finalProfit = grandTotal - 6000 - 2000;
+
+    const resultHTML = `
+      <div style="font-size:14px; font-weight:bold; margin-bottom: 6px;">
+  ยอดซื้อรวมทั้งหมด: ${(totalBuyAll + totalRunAll).toLocaleString()} บาท
+    </div>
+
+      ${profitLines}
+      <hr>
+      ถูก 3 ล่างรวม: ${total3Lower.toLocaleString()} × 20 = <strong>${reward3Lower.toLocaleString()} บาท</strong><br><br>
+      ✅ รวมเปอร์เซ็นต์ขายได้ = <strong>${grandTotal.toLocaleString()} บาท</strong><br><br>
+      ➖ หักค่าเสมียน 6,000 บาท<br>
+      ➖ หักค่าเสมียนจด 2,000 บาท<br>
+      <h3>✔️ ยอดคงเหลือ = <strong style="color:green">${finalProfit.toLocaleString()} บาท</strong></h3>
+    `;
+
+    document.getElementById("summaryContent").innerHTML = resultHTML;
+  };
+}
+
+
+
+
