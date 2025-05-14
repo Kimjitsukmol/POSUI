@@ -730,32 +730,97 @@ function fetchAndStoreProductList() {
       console.error("❌ โหลดจาก Google Sheets ล้มเหลว", err);
     });
 }
+    
+    // ✅ เพิ่มเงื่อนไขพักบิล
 
+let heldBills = []; // เก็บบิลที่พักไว้
 
+function holdCurrentBill() {
+  const rows = document.querySelectorAll("#productBody tr");
+  if (rows.length === 0) {
+    return;
+  }
 
-const form = document.getElementById('productForm');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = {
-        barcode: document.getElementById('barcode').value,
-        name: document.getElementById('name').value,
-        price: document.getElementById('price').value
-      };
+  const items = Array.from(rows).map(row => {
+    const cols = row.querySelectorAll("td");
+    return {
+      code: cols[0].textContent,
+      name: cols[1].textContent,
+      qty: cols[2].querySelector("input").value,
+      price: cols[3].textContent
+    };
+  });
 
-      const response = await fetch('https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+  const total = totalPrice;
+  const timestamp = new Date().getTime();
+  heldBills.push({ id: timestamp, items, total });
+  renderHeldBills();
+  clearAll();
+}
 
-      if (response.ok) {
-        alert('บันทึกสำเร็จ!');
-        form.reset();
-      } else {
-        alert('เกิดข้อผิดพลาด');
-      }
+function renderHeldBills() {
+  const existing = document.getElementById("heldBillPopup");
+  if (existing) existing.remove();
+
+  if (heldBills.length === 0) return;
+
+  const container = document.createElement("div");
+  container.id = "heldBillPopup";
+  container.style.position = "fixed";
+  container.style.bottom = "20px";
+  container.style.right = "20px";
+  container.style.zIndex = "9999";
+  container.style.background = "#f39c12";
+  container.style.color = "#fff";
+  container.style.padding = "10px";
+  container.style.borderRadius = "10px";
+  container.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
+  container.style.maxWidth = "250px";
+  container.style.maxHeight = "60vh";
+  container.style.overflowY = "auto";
+
+  heldBills.forEach((bill, index) => {
+    const btn = document.createElement("button");
+    btn.style.display = "block";
+    btn.style.margin = "5px 0";
+    btn.style.padding = "8px";
+    btn.style.width = "100%";
+    btn.style.fontSize = "13px";
+    btn.style.border = "none";
+    btn.style.borderRadius = "6px";
+    btn.style.cursor = "pointer";
+    btn.style.background = "#e67e22";
+    btn.textContent = `บิล ${index + 1} - ฿${bill.total.toFixed(0)}`;
+    btn.onclick = () => restoreHeldBill(index);
+    container.appendChild(btn);
+  });
+
+  document.body.appendChild(container);
+}
+
+function restoreHeldBill(index) {
+  clearAll();
+  const bill = heldBills[index];
+  bill.items.forEach(item => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${item.code}</td>
+      <td>${item.name}</td>
+      <td><input type='number' value='${item.qty}' min='1' oninput='updateTotals()' style='width: 23px;'></td>
+      <td class='item-row-price'>${item.price}</td>
+      <td><button class='delete-btn'>❌</button></td>
+    `;
+    row.querySelector(".delete-btn").addEventListener("click", function () {
+      row.remove();
+      updateTotals();
+      updateRowColors();
     });
-    
-    
+    document.getElementById("productBody").appendChild(row);
+  });
+  heldBills.splice(index, 1);
+  updateTotals();
+  updateRowColors();
+  renderHeldBills();
+}
+
+document.getElementById("holdBillBtn").addEventListener("click", holdCurrentBill);
