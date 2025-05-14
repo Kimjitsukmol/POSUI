@@ -163,6 +163,7 @@ document.getElementById("received").addEventListener("keydown", function (e) {
   // ลบบิลแรกที่รอชำระเงินออก (ที่ถูก restore เข้ามา)
   heldBills.shift(); 
   renderHeldBills();
+  localStorage.setItem("heldBills", JSON.stringify(heldBills));
   hasClearedHeldBill = true;
 }
 
@@ -738,6 +739,14 @@ window.addEventListener("load", () => {
   } else {
     fetchAndStoreProductList(); // ถ้าไม่มีใน local ให้โหลดจากเน็ต
   }
+    const held = localStorage.getItem("heldBills");
+    if (held) {
+      const parsed = JSON.parse(held);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        heldBills = parsed;
+        renderHeldBills();
+      }
+    }
 });
 
 // โหลดจาก Google Sheets แล้วเก็บไว้ใน localStorage
@@ -781,6 +790,7 @@ function holdCurrentBill() {
   const total = totalPrice;
   const timestamp = new Date().getTime();
   heldBills.push({ id: timestamp, items, total });
+  localStorage.setItem("heldBills", JSON.stringify(heldBills));
   renderHeldBills();
   clearAll();
 }
@@ -803,7 +813,7 @@ function renderHeldBills(activeIndex = -1) {
   container.style.borderRadius = "10px";
   container.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
   container.style.width = "220px";
-  container.style.height = "20vh";
+  container.style.height = "13vh";
   container.style.overflowY = "auto";
   container.style.boxSizing = "border-box";
 
@@ -875,6 +885,8 @@ function restoreHeldBill(index, animate = false) {
   hasClearedHeldBill = false;
 
   renderHeldBills(index); // ส่ง index ที่ restore ไป
+  localStorage.setItem("heldBills", JSON.stringify(heldBills));
+
 }
 
 
