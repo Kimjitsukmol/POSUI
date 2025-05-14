@@ -159,13 +159,16 @@ document.getElementById("received").addEventListener("keydown", function (e) {
     saveReceiptToHistory(html);
     saveToLocalSummary();
 
-    if (!hasClearedHeldBill) {
-  // ลบบิลแรกที่รอชำระเงินออก (ที่ถูก restore เข้ามา)
-  heldBills.shift(); 
+    // ✅ ลบบิลเฉพาะกรณีที่ถูกเรียกกลับมาแล้วเท่านั้น
+if (!hasClearedHeldBill && currentHeldIndex !== -1) {
+  const realIndex = heldBills.length - 1 - currentHeldIndex;
+  heldBills.splice(realIndex, 1); // ลบเฉพาะบิลที่เรียกกลับมา
+  currentHeldIndex = -1; // reset index
   renderHeldBills();
   localStorage.setItem("heldBills", JSON.stringify(heldBills));
   hasClearedHeldBill = true;
 }
+
 
 
     speak(`ขอบคุณค่ะ`);
