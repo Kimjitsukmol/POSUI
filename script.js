@@ -20,13 +20,13 @@ fetch("https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4Yiu
 
   
   function speak(text) {
-  // ✅ ยกเลิกเสียงที่ยังไม่พูดจบ (สำคัญ!)
-  window.speechSynthesis.cancel();
+  window.speechSynthesis.cancel(); // ⛔️ สำคัญมาก ป้องกันค้างเสียง
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "th-TH";
-  utterance.rate = 1; // ลองใช้ 1.5 หรือ 1.7
+  utterance.rate = 1.0;
   speechSynthesis.speak(utterance);
 }
+
 
 window.addEventListener('load', () => {
   document.querySelector('.summary-box')?.classList.add('summary-fixed');
@@ -208,12 +208,11 @@ function findProduct() {
       const row = document.createElement("tr");
 
       row.innerHTML = `
-        <td>${productList[i]["รหัสสินค้า"]}</td>
         <td class="name-cell">${productList[i]["ชื่อสินค้า"]}</td>
         <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
         <td class='unit-price'>${unitPrice.toFixed(0)}</td>
         <td class='item-row-price' data-unit-price='${unitPrice}'>${unitPrice.toFixed(0)}</td>
-        <td><button class='delete-btn'>❌</button></td>
+        <td><button class='delete-btn'>x</button></td>
       `;
       row.querySelector(".delete-btn").addEventListener("click", function () {
         row.remove();
@@ -237,7 +236,6 @@ function findProduct() {
     if (!isNaN(num) && num >= 1 && num <= 10000) {
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${num}</td>
         <td>รายการสินค้า</td>
         <td><input type='number' value='1' min='1' oninput='updateTotals()' style='width: 23px;'></td>
         <td class='unit-price'>${num}</td>
@@ -431,16 +429,20 @@ function generateReceiptHTML() {
                + "<tr><th style='text-align:left;'>สินค้า</th><th style='text-align:center;'>จำนวน</th><th style='text-align:right;'>ราคา</th></tr>";
 
   rows.forEach(row => {
-    const cols = row.querySelectorAll("td");
-    const name = cols[1].textContent;
-    const qty = cols[2].querySelector("input").value;
-    const price = cols[3].textContent;
-    listHTML += "<tr>"
-              + `<td>${name}</td>`
-              + `<td style='text-align:center;'>${qty}</td>`
-              + `<td style='text-align:right;'>฿${price}</td>`
-              + "</tr>";
-  });
+  const cols = row.querySelectorAll("td");
+
+  const name = cols[0].textContent;
+  const qtyInput = cols[1].querySelector("input");
+  const qty = qtyInput ? qtyInput.value : "0"; // กัน input หาย
+  const price = cols[2].textContent;
+
+  listHTML += "<tr>"
+            + `<td>${name}</td>`
+            + `<td style='text-align:center;'>${qty}</td>`
+            + `<td style='text-align:right;'>฿${price}</td>`
+            + "</tr>";
+});
+
 
   listHTML += "</table>";
 
@@ -521,13 +523,6 @@ setInterval(updateDateTime, 1000);
 
 // เรียกครั้งแรก
 updateDateTime();
-
-function speak(text) {
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "th-TH"; // ตั้งค่าให้พูดภาษาไทย
-  utterance.rate = 1.0;     // ความเร็วในการพูด (1.0 = ปกติ)
-  speechSynthesis.speak(utterance);
-}
 
 function cleanupOldSummary(summary) {
   const today = new Date();
@@ -731,6 +726,10 @@ window.addEventListener("load", () => {
   } else {
     fetchAndStoreProductList(); // ถ้าไม่มีใน local ให้โหลดจากเน็ต
   }
+   document.getElementById("productCode")?.focus();
+
+  // ✅ ผูกปุ่มพักบิลให้ทำงาน
+  document.getElementById("holdBillBtn")?.addEventListener("click", holdCurrentBill);
 });
 
 // โหลดจาก Google Sheets แล้วเก็บไว้ใน localStorage
@@ -748,30 +747,170 @@ function fetchAndStoreProductList() {
 }
 
 
+    
+function holdCurrentBill() {
+  const rows = document.querySelectorAll("#productBody tr");
+  if (rows.length === 0) {
+    speak("ยังไม่มีสินค้า");
+    return;
+  }
 
-const form = document.getElementById('productForm');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = {
-        barcode: document.getElementById('barcode').value,
-        name: document.getElementById('name').value,
-        price: document.getElementById('price').value
-      };
+  const heldBills = JSON.parse(localStorage.getItem("heldBills") || "{}");
+  const nextBillNumber = Object.keys(heldBills).length + 1;
+  const billName = String(nextBillNumber);
 
-      const response = await fetch('https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+  let total = 0;
+  const billData = Array.from(rows).map(row => {
+    const qtyInput = row.querySelector("input[type='number']");
+    const unitCell = row.querySelector(".item-row-price");
 
-      if (response.ok) {
-        alert('บันทึกสำเร็จ!');
-        form.reset();
-      } else {
-        alert('เกิดข้อผิดพลาด');
-      }
+    const qty = qtyInput ? parseInt(qtyInput.value) : 0;
+    const unit = unitCell?.dataset.unitPrice ? parseInt(unitCell.dataset.unitPrice) : 0;
+
+    total += qty * unit;
+
+    return {
+      name: row.cells[0].textContent,
+      qty,
+      price: row.cells[2].textContent,
+      unit
+    };
+  });
+
+  if (total === 0) {
+    speak("ยังไม่มีสินค้า");
+    return;
+  }
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+
+  heldBills[billName] = {
+    items: billData,
+    total,
+    time: timeStr
+  };
+
+  localStorage.setItem("heldBills", JSON.stringify(heldBills));
+  clearAll();
+  speak(`พักบิล ${billName}`);
+  showBillPopup();
+}
+
+
+
+function showBillPopup() {
+  const heldBills = JSON.parse(localStorage.getItem("heldBills") || "{}");
+  const popup = document.getElementById("billPopup");
+
+  const sortedBillNames = Object.keys(heldBills)
+    .sort((a, b) => parseInt(b) - parseInt(a));
+
+  if (sortedBillNames.length === 0) {
+    popup.style.display = "none";
+    return;
+  }
+
+  const html = sortedBillNames.map(name => {
+    const bill = heldBills[name];
+    return `<div style="cursor:pointer; padding:4px 0;" onclick="loadBillByName('${name}')">
+      🧾 บิล ${name} (฿${bill.total}) เวลา ${bill.time}
+    </div>`;
+  }).join("");
+
+  popup.innerHTML = html;
+
+  const target = document.getElementById("changeBox");
+  const rect = target.getBoundingClientRect();
+  popup.style.top = rect.bottom + window.scrollY + 100 + "px";
+  popup.style.left = rect.left + window.scrollX + -20 + "px";
+  popup.style.display = "block";
+}
+
+
+
+
+
+function loadHeldBill() {
+  const heldBills = JSON.parse(localStorage.getItem("heldBills") || "{}");
+  const billNames = Object.keys(heldBills);
+
+  if (billNames.length === 0) {
+    speak("ไม่มีบิลที่พักไว้");
+    return;
+  }
+
+  // ✅ หาเลขบิลล่าสุด (ตัวเลขมากสุด)
+  const latestBill = billNames
+    .map(n => parseInt(n))
+    .filter(n => !isNaN(n))
+    .sort((a, b) => b - a)[0]
+    .toString();
+
+  const data = heldBills[latestBill];
+  if (!data) {
+    speak("โหลดบิลล้มเหลว");
+    return;
+  }
+
+  clearAll();
+  data.forEach(item => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${item.name}</td>
+      <td><input type='number' value='${item.qty}' min='1' oninput='updateTotals()' style='width: 23px;'></td>
+      <td class='unit-price'>${item.unit}</td>
+      <td class='item-row-price' data-unit-price='${item.unit}'>${(item.qty * item.unit).toFixed(0)}</td>
+      <td><button class='delete-btn'>x</button></td>
+    `;
+    row.querySelector(".delete-btn").addEventListener("click", function () {
+      row.remove();
+      updateTotals();
+      updateRowColors();
     });
-    
-    
+    document.getElementById("productBody").appendChild(row);
+  });
+
+  delete heldBills[latestBill];
+  localStorage.setItem("heldBills", JSON.stringify(heldBills));
+
+  updateTotals();
+  updateRowColors();
+  speak(`บิลล่าสุด ${latestBill} เรียบร้อย`);
+}
+
+function loadBillByName(name) {
+  const heldBills = JSON.parse(localStorage.getItem("heldBills") || "{}");
+  const bill = heldBills[name];
+  if (!bill || !bill.items) return;
+
+  clearAll();
+  bill.items.forEach(item => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${item.name}</td>
+      <td><input type='number' value='${item.qty}' min='1' oninput='updateTotals()' style='width: 23px;'></td>
+      <td class='unit-price'>${item.unit}</td>
+      <td class='item-row-price' data-unit-price='${item.unit}'>${(item.qty * item.unit).toFixed(0)}</td>
+      <td><button class='delete-btn'>x</button></td>
+    `;
+    row.querySelector(".delete-btn").addEventListener("click", function () {
+      row.remove();
+      updateTotals();
+      updateRowColors();
+    });
+    document.getElementById("productBody").appendChild(row);
+  });
+
+  delete heldBills[name];
+  localStorage.setItem("heldBills", JSON.stringify(heldBills));
+  updateTotals();
+  updateRowColors();
+  showBillPopup();
+  speak(`โหลดบิล ${name}`);
+}
+
+
+
+
+
