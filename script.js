@@ -315,7 +315,7 @@ function calculateChange() {
   const summaryBox = document.querySelector(".summary-box");
 
   if (!receivedInput.value || isNaN(received)) {
-    changeBox.textContent = "";
+    changeBox.textContent = "0";
     summaryBox.classList.remove("animate-shrink");
     clearTimeout(calculateSpeakTimer); // ป้องกันเสียงค้าง
     return;
