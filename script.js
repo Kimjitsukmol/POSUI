@@ -7,6 +7,10 @@ let rangeTimer = null;
 
 let isEnterPressed = false;
 let isBackspacePressed = false;
+let hasClearedHeldBill = false;
+let currentHeldIndex = -1; // -1 = ยังไม่เคยเรียก
+
+
 
 fetch("https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec")
   .then(response => response.json())
@@ -155,6 +159,14 @@ document.getElementById("received").addEventListener("keydown", function (e) {
     saveReceiptToHistory(html);
     saveToLocalSummary();
 
+    if (!hasClearedHeldBill) {
+  // ลบบิลแรกที่รอชำระเงินออก (ที่ถูก restore เข้ามา)
+  heldBills.shift(); 
+  renderHeldBills();
+  hasClearedHeldBill = true;
+}
+
+
     speak(`ขอบคุณค่ะ`);
     //ทอน ${change} 
     clearAll();
@@ -179,7 +191,18 @@ window.addEventListener("keydown", function (e) {
   } else if (e.code === "NumpadAdd") {
     document.getElementById("received").focus();
     e.preventDefault();
-  }
+  } else if (e.code === "NumpadMultiply") {
+    holdCurrentBill(); // เรียกฟังก์ชันพักบิล
+    e.preventDefault();
+  } else if (e.code === "NumpadSubtract") {
+  if (heldBills.length === 0) return;
+
+  currentHeldIndex++;
+  if (currentHeldIndex >= heldBills.length) currentHeldIndex = 0;
+
+  restoreHeldBill(currentHeldIndex, true); // เพิ่ม true = เปิดแอนิเมชัน
+  e.preventDefault();
+}
 });
 
 function findProduct() {
@@ -742,14 +765,18 @@ function holdCurrentBill() {
   }
 
   const items = Array.from(rows).map(row => {
-    const cols = row.querySelectorAll("td");
-    return {
-      code: cols[0].textContent,
-      name: cols[1].textContent,
-      qty: cols[2].querySelector("input").value,
-      price: cols[3].textContent
-    };
-  });
+  const cols = row.querySelectorAll("td");
+  const unitPrice = parseFloat(cols[3].getAttribute("data-unit-price") || cols[3].textContent);
+  const qty = parseInt(cols[2].querySelector("input").value);
+
+  return {
+    code: cols[0].textContent,
+    name: cols[1].textContent,
+    qty: qty,
+    unitPrice: unitPrice
+  };
+});
+
 
   const total = totalPrice;
   const timestamp = new Date().getTime();
@@ -758,7 +785,7 @@ function holdCurrentBill() {
   clearAll();
 }
 
-function renderHeldBills() {
+function renderHeldBills(activeIndex = -1) {
   const existing = document.getElementById("heldBillPopup");
   if (existing) existing.remove();
 
@@ -775,11 +802,15 @@ function renderHeldBills() {
   container.style.padding = "10px";
   container.style.borderRadius = "10px";
   container.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
-  container.style.maxWidth = "250px";
-  container.style.maxHeight = "60vh";
+  container.style.width = "220px";
+  container.style.height = "20vh";
   container.style.overflowY = "auto";
+  container.style.boxSizing = "border-box";
 
-  heldBills.forEach((bill, index) => {
+  for (let displayIndex = 0; displayIndex < heldBills.length; displayIndex++) {
+  const i = heldBills.length - 1 - displayIndex; // แปลง index แสดง → index จริง
+
+    const bill = heldBills[i];
     const btn = document.createElement("button");
     btn.style.display = "block";
     btn.style.margin = "5px 0";
@@ -790,37 +821,61 @@ function renderHeldBills() {
     btn.style.borderRadius = "6px";
     btn.style.cursor = "pointer";
     btn.style.background = "#e67e22";
-    btn.textContent = `บิล ${index + 1} - ฿${bill.total.toFixed(0)}`;
-    btn.onclick = () => restoreHeldBill(index);
+    btn.textContent = `พักบิล ${i + 1} - ฿${bill.total.toFixed(0)}`;
+    btn.onclick = () => restoreHeldBill(displayIndex, true);
+
+    if (displayIndex === activeIndex) {
+      btn.style.transform = "scale(1.5)";
+      btn.style.transition = "transform 0.3s ease";
+      btn.style.boxShadow = "0 0 10px white";
+      btn.style.color = "black";
+      setTimeout(() => {
+        btn.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 10);
+    }
+
     container.appendChild(btn);
-  });
+  }
 
   document.body.appendChild(container);
 }
 
-function restoreHeldBill(index) {
+
+function restoreHeldBill(index, animate = false) {
   clearAll();
-  const bill = heldBills[index];
+  const realIndex = heldBills.length - 1 - index; // แปลง index จากลำดับแสดง → index จริง
+  const bill = heldBills[realIndex];
+
+
   bill.items.forEach(item => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${item.code}</td>
-      <td>${item.name}</td>
-      <td><input type='number' value='${item.qty}' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-      <td class='item-row-price'>${item.price}</td>
-      <td><button class='delete-btn'>❌</button></td>
-    `;
-    row.querySelector(".delete-btn").addEventListener("click", function () {
-      row.remove();
-      updateTotals();
-      updateRowColors();
-    });
-    document.getElementById("productBody").appendChild(row);
+  const row = document.createElement("tr");
+  const total = item.unitPrice * item.qty;
+
+  row.innerHTML = `
+    <td>${item.code}</td>
+    <td>${item.name}</td>
+    <td><input type='number' value='${item.qty}' min='1' oninput='updateTotals()' style='width: 23px;'></td>
+    <td class='item-row-price' data-unit-price='${item.unitPrice}'>${total.toFixed(0)}</td>
+    <td><button class='delete-btn'>❌</button></td>
+  `;
+  row.querySelector(".delete-btn").addEventListener("click", function () {
+    row.remove();
+    updateTotals();
+    updateRowColors();
   });
-  heldBills.splice(index, 1);
+
+  document.getElementById("productBody").appendChild(row);
+});
+
+
   updateTotals();
   updateRowColors();
-  renderHeldBills();
+
+  // ไม่ลบบิลออก → รอ Enter ที่ช่องรับเงิน
+  hasClearedHeldBill = false;
+
+  renderHeldBills(index); // ส่ง index ที่ restore ไป
 }
+
 
 document.getElementById("holdBillBtn").addEventListener("click", holdCurrentBill);
