@@ -198,7 +198,7 @@ window.addEventListener("keydown", function (e) {
   } else if (e.code === "NumpadMultiply") {
     holdCurrentBill(); // เรียกฟังก์ชันพักบิล
     e.preventDefault();
-  } else if (e.code === "NumpadSubtract") {
+  } else if (e.code === "NumpadDivide") {
   if (heldBills.length === 0) return;
 
   currentHeldIndex++;
