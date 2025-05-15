@@ -889,7 +889,7 @@ function restoreHeldBill(index, animate = false) {
   updateRowColors();
 
   renderHeldBills(index);          // เอาไว้ไฮไลท์บิลใน popup ได้ถ้าต้องการ
-  localStorage.setItem("heldBills", JSON.stringify(heldBills));
+  //localStorage.setItem("heldBills", JSON.stringify(heldBills));
 }
 
 
