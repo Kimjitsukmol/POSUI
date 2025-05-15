@@ -11,6 +11,48 @@ let hasClearedHeldBill = false;
 let currentHeldIndex = -1; // -1 = ยังไม่เคยเรียก
 
 
+// === กำหนดปลายทาง ===
+const SALES_ENDPOINT =
+  "https://script.google.com/macros/s/AKfycbxpztwUAQ0zaKP8g-xSItqHb-UU1JvFX0kU_llpokrl9mO8UHbivIIUyoWNncQ94VXR/exec";
+
+// === helper สำหรับบันทึกยอดขาย ===
+function sendSaleToSheet(received, change) {
+  const items = [...document.querySelectorAll("#productBody tr")].map(row => {
+    const tds = row.querySelectorAll("td");
+    return {
+      code : tds[0].textContent,
+      name : tds[1].textContent,
+      qty  : +tds[2].querySelector("input").value,
+      price: +(tds[3].getAttribute("data-unit-price") || tds[3].textContent)
+    };
+  });
+
+  const payload = {
+    sheet      : "รายการขาย",          // ตรงกับชื่อที่ตั้งไว้ หรือแก้ให้ตรงชีตจริง
+    datetime   : new Date().toISOString(),
+    items      : JSON.stringify(items),
+    totalQty   : totalQty,
+    totalPrice : totalPrice,
+    received   : received,
+    change     : change
+  };
+
+  // บอดี้ส่งเป็น URL-encoded string ชื่อ data
+const simpleBody = 'data=' + encodeURIComponent(JSON.stringify(payload));
+
+fetch(SALES_ENDPOINT, {
+  method : 'POST',
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+  body   : simpleBody,
+  mode   : 'no-cors'   // ← ใส่ได้ถ้าต้องการข้าม CORS
+})
+.catch(err => console.error('❌ ส่งข้อมูลไม่สำเร็จ:', err));
+
+
+}
+
+
+
 
 fetch("https://script.google.com/macros/s/AKfycbwoK3qwfpO4BXTpSN3jKxL4hXdp1E4YiuN2O-Z2Qa1He-b1k2TAPrxjoVlWDSdXOISH/exec")
   .then(response => response.json())
@@ -146,6 +188,7 @@ document.getElementById("productCode").addEventListener("keyup", function (e) {
 
 document.getElementById("received").addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !e.repeat) {
+
     const rows = document.querySelectorAll("#productBody tr");
     if (rows.length === 0) {
     speak("กรุณาใส่สินค้าก่อน");
@@ -158,6 +201,7 @@ document.getElementById("received").addEventListener("keydown", function (e) {
     showReceiptPopup(html);
     saveReceiptToHistory(html);
     saveToLocalSummary();
+    sendSaleToSheet(received, change);
 
     // ✅ ลบบิลเฉพาะกรณีที่ถูกเรียกกลับมาแล้วเท่านั้น
 if (!hasClearedHeldBill && currentHeldIndex !== -1) {
