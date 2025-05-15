@@ -816,7 +816,7 @@ function renderHeldBills(activeIndex = -1) {
   container.style.borderRadius = "10px";
   container.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
   container.style.width = "180px";
-  container.style.height = "7vh";
+  container.style.height = "5vh";
   container.style.overflowY = "auto";
   container.style.boxSizing = "border-box";
 
