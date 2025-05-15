@@ -13,7 +13,7 @@ body {
 }
 
 .right-pane {
-  background-color: #0f172a;/* สีเข้ม */
+  background-color: rgba(31, 41, 55, 0.9);/* สีเข้ม */
   width: 25%;
   padding: 30px;
   color: white;
