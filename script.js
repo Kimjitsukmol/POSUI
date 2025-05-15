@@ -13,7 +13,7 @@ let currentHeldIndex = -1; // -1 = ยังไม่เคยเรียก
 
 // === กำหนดปลายทาง ===
 const SALES_ENDPOINT =
-  "https://script.google.com/macros/s/AKfycbxpztwUAQ0zaKP8g-xSItqHb-UU1JvFX0kU_llpokrl9mO8UHbivIIUyoWNncQ94VXR/exec";
+  "https://script.google.com/macros/s/AKfycbyL63QfbS9zh41-l_C3VtlPDWZOQoUfe5nhmREi_P-fyotSAjVH0NRBL4Nbz6xahF2E/exec";
 
 // === helper สำหรับบันทึกยอดขาย ===
 function sendSaleToSheet(received, change) {
