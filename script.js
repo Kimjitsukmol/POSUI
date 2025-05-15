@@ -815,8 +815,8 @@ function renderHeldBills(activeIndex = -1) {
   container.style.padding = "10px";
   container.style.borderRadius = "10px";
   container.style.boxShadow = "0 0 10px rgba(0,0,0,0.3)";
-  container.style.width = "220px";
-  container.style.height = "13vh";
+  container.style.width = "180px";
+  container.style.height = "7vh";
   container.style.overflowY = "auto";
   container.style.boxSizing = "border-box";
 
@@ -835,7 +835,10 @@ function renderHeldBills(activeIndex = -1) {
     btn.style.cursor = "pointer";
     btn.style.background = "#e67e22";
     btn.textContent = `พักบิล ${i + 1} - ฿${bill.total.toFixed(0)}`;
-    btn.onclick = () => restoreHeldBill(displayIndex, true);
+    btn.onclick = () => {
+      currentHeldIndex = displayIndex;
+      restoreHeldBill(displayIndex, true);
+      };
 
     if (displayIndex === activeIndex) {
       btn.style.transform = "scale(1.5)";
@@ -855,42 +858,40 @@ function renderHeldBills(activeIndex = -1) {
 
 
 function restoreHeldBill(index, animate = false) {
+  // 👉 เก็บ index ที่เรียกกลับมาไว้เพื่อลบตอนกด Enter
+  const realIndex = heldBills.length - 1 - index;   // index จริงในอาเรย์
+  currentHeldIndex = realIndex;                     // ⭐ สำคัญมาก
+  hasClearedHeldBill = false;                       // รอลบหลังคิดเงินเสร็จ
+
   clearAll();
-  const realIndex = heldBills.length - 1 - index; // แปลง index จากลำดับแสดง → index จริง
+
   const bill = heldBills[realIndex];
-
-
   bill.items.forEach(item => {
-  const row = document.createElement("tr");
-  const total = item.unitPrice * item.qty;
-
-  row.innerHTML = `
-    <td>${item.code}</td>
-    <td>${item.name}</td>
-    <td><input type='number' value='${item.qty}' min='1' oninput='updateTotals()' style='width: 23px;'></td>
-    <td class='item-row-price' data-unit-price='${item.unitPrice}'>${total.toFixed(0)}</td>
-    <td><button class='delete-btn'>❌</button></td>
-  `;
-  row.querySelector(".delete-btn").addEventListener("click", function () {
-    row.remove();
-    updateTotals();
-    updateRowColors();
+    const row = document.createElement("tr");
+    const total = item.unitPrice * item.qty;
+    row.innerHTML = `
+      <td>${item.code}</td>
+      <td>${item.name}</td>
+      <td><input type='number' value='${item.qty}' min='1'
+                 oninput='updateTotals()' style='width: 23px;'></td>
+      <td class='item-row-price' data-unit-price='${item.unitPrice}'>${total.toFixed(0)}</td>
+      <td><button class='delete-btn'>❌</button></td>
+    `;
+    row.querySelector(".delete-btn").addEventListener("click", () => {
+      row.remove();
+      updateTotals();
+      updateRowColors();
+    });
+    document.getElementById("productBody").appendChild(row);
   });
-
-  document.getElementById("productBody").appendChild(row);
-});
-
 
   updateTotals();
   updateRowColors();
 
-  // ไม่ลบบิลออก → รอ Enter ที่ช่องรับเงิน
-  hasClearedHeldBill = false;
-
-  renderHeldBills(index); // ส่ง index ที่ restore ไป
+  renderHeldBills(index);          // เอาไว้ไฮไลท์บิลใน popup ได้ถ้าต้องการ
   localStorage.setItem("heldBills", JSON.stringify(heldBills));
-
 }
+
 
 
 document.getElementById("holdBillBtn").addEventListener("click", holdCurrentBill);
